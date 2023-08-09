@@ -1,0 +1,159 @@
+service: defender-serverless-template
+configValidationMode: error
+frameworkVersion: '3'
+
+custom:
+  config: ${file(./config.${self:provider.stage}.yml)}
+  secrets: ${file(./.secrets/${self:provider.stage}.yml)}
+
+provider:
+  name: defender
+  stage: ${opt:stage, 'dev'}
+  stackName: '${self:custom.config.stack-name}-${self:provider.stage}'
+  ssot: false
+defender:
+  key: ${self:custom.secrets.keys.defender-api-key}
+  secret: ${self:custom.secrets.keys.defender-api-secret}
+
+functions:
+  sample-autotask:
+    name: 'Autotask template'
+    path: './autotasks/sample-rollup/dist/index.js'
+    trigger:
+      type: 'webhook' # schedule | webhook
+      # frequency: 123 # optional if schedule is used
+      # cron: '' #optional
+    paused: false
+  #   relayer: ${self:resources.Resources.relayers.relayer-1}   # optional
+
+resources:
+  Resources:
+    policies:
+      sample-policy:
+        # gas-price-cap: 1000 #optional
+        # eip1559-pricing: true  #optional
+        # whitelist-receivers:  #optional
+        # private-transactions:  #optional
+    notifications:
+      sample-slack:
+        type: 'slack' # Enum: https://github.com/OpenZeppelin/defender-serverless/blob/main/src/types/docs/definitions-definitions-notificationtype.md
+        name: ''
+        config:
+          url: ${self:custom.secrets.notifications.slack-webhook}
+        paused: false
+      sample-email:
+        type: 'email' # Enum: https://github.com/OpenZeppelin/defender-serverless/blob/main/src/types/docs/definitions-definitions-notificationtype.md
+        name: ''
+        config:
+          emails: ${self:custom.secrets.notifications.emails}
+        paused: false
+      sample-discord:
+        type: 'discord' # Enum: https://github.com/OpenZeppelin/defender-serverless/blob/main/src/types/docs/definitions-definitions-notificationtype.md
+        name: ''
+        config:
+          url: ${self:custom.secrets.notifications.discord-webhook}
+        paused: false
+      sample-telegram:
+        type: 'telegram' # Enum: https://github.com/OpenZeppelin/defender-serverless/blob/main/src/types/docs/definitions-definitions-notificationtype.md
+        name: ''
+        config:
+          bot-token: ${self:custom.secrets.notifications.telegram.token}
+          chat-id: ${self:custom.secrets.notifications.telegram.chat-id}
+        paused: false
+      sample-datadog:
+        type: 'datadog' # Enum: https://github.com/OpenZeppelin/defender-serverless/blob/main/src/types/docs/definitions-definitions-notificationtype.md
+        name: ''
+        config:
+          api-key: ${self:custom.secrets.keys.datadog-api-key}
+          metrix-prefix: ${self:custom.secrets.notifications.datadog-metric-prefix}
+        paused: false
+
+      # N.B. Webhooks do not work until defender team fixes this: https://github.com/OpenZeppelin/defender-serverless/issues/42
+      # sample-webhook:
+      #   type: 'webhook' # Enum: https://github.com/OpenZeppelin/defender-serverless/blob/main/src/types/docs/definitions-definitions-notificationtype.md
+      #   name: ''
+      #   paused: false
+    contracts:
+      sample-contract:
+        name: ''
+        address: ''
+        network: ''
+        # abi: "${self:custom.my-abi}"  # optional
+        nat-spec: null # optional
+    relayers:
+      sample-relayer:
+        name: ''
+        network: '${self:custom.config.network}'
+        min-balance: 1000
+        # policy: ${self:resources.Resources.policies.policy-1} #optional
+        # address-from-relayer: #optional, pointing with this to another relayer allows to private key it on different network
+        api-keys:
+          - key1
+    sentinels:
+      sample-simple-sentinel:
+        name: ''
+        type: 'BLOCK'
+        network: '${self:custom.config.network}'
+        # abi: '${self:custom.my-abi}' #optional
+        conditions:
+          event:
+            - signature: 'OwnershipTransferred(address,address)'
+            - signature: 'Transfer(address,address,uint256)'
+              expression: 'from==${self:custom.config.address}'
+          function:
+            - signature: ''
+        addresses: ${self:custom.config.monitored-list}
+        # autotask-condition: ${self:functions.autotask-condition}   #optional
+        # autotask-trigger: ${self:functions.autotask-trigger}   #optional
+        # paused: true #optional
+        confirm-level: 1
+        notify-config:
+          # timeout: 123 #optional
+          # message: '' #optional
+          # category: #optional
+          #   name: ''
+          #   description: ''
+          #   notification-ids: ''
+          channels:
+            - ${self:resources.Resources.notifications.sample-discord}
+            - ${self:resources.Resources.notifications.sample-slack}
+        sample-forta-sentinel:
+          name: ''
+          type: 'FORTA'
+          network: '${self:custom.config.network}'
+          # addresses: ${self:custom.config.monitored-list} #optional
+          # abi: '${self:custom.my-abi}' #optional
+          # alert-threshold:
+          #   amount: 123
+          #   window-seconds: 123
+          # paused: true #optional
+          # autotask-condition: ${self:functions.autotask-condition}   #optional
+          # autotask-trigger: ${self:functions.autotask-trigger}   #optional
+          notify-config:
+          # timeout: 123 #optional
+          # message: '' #optional
+          # category: #optional
+          #   name: ''
+          #   description: ''
+          #   notification-ids: ''
+          channels:
+            - ${self:resources.Resources.notifications.sample-discord}
+            - ${self:resources.Resources.notifications.sample-slack}
+          # conditions: optional. Dont need for Local Mode
+          #   min-scanner-count: 1
+          #   severity: 1 # 0 | 1 | 2 | 3 | 4 | 5
+          #   alert-ids:
+          #     - ''
+          # forta-node-id: '' # Must be set for Forta Local Mode
+          # agent-ids: '' # Optional (not needed for local mode?)
+          # forta-last-processed-time: '' # optional
+    secrets:
+      global: # optional - global secrets are not affected by stackName changes
+        FOO: ${self:custom.secrets.foo}
+        HELLO: ${self:custom.secrets.hello}
+      # optional - stack secrets (formatted as <stackname>_<secretkey>)
+      stack:
+        TEST: ${self:custom.secrets.test}
+
+plugins:
+  - defender-serverless

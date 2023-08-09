@@ -1,0 +1,5 @@
+network: 'goerli' # enum, listed here: https://github.com/OpenZeppelin/defender-serverless/blob/main/src/types/docs/definitions-definitions-relayer.md#network-constraints
+stack-name: 'my-project'
+address: '0x..'
+monitored-list: 
+  - '0x..'
